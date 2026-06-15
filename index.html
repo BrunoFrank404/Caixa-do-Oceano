@@ -398,8 +398,14 @@
   let isPlaying = false;
   let isPaused = false;
   let pauseTimer = null;
-  let currentAudio = null;
   let resumeFromGap = false;
+
+  // Um único elemento de áudio, reaproveitado para todas as faixas.
+  // O iOS só permite play() programático em elementos já "destravados"
+  // por uma interação direta do usuário — por isso não criamos um
+  // new Audio() para cada etapa.
+  const player = new Audio();
+  player.preload = 'auto';
 
   // Monta os indicadores de progresso (um por etapa)
   rawSteps.forEach((s, i) => {
@@ -420,25 +426,22 @@
     playBtn.disabled = true;
   }
 
-  // Interrompe completamente o áudio atual (e qualquer pausa agendada),
-  // para garantir que nada continue tocando por baixo da próxima faixa.
-  function stopCurrentAudio(){
+  // Interrompe a reprodução atual e qualquer pausa agendada.
+  function stopPlayback(){
     if (pauseTimer){
       clearTimeout(pauseTimer);
       pauseTimer = null;
     }
-    if (currentAudio){
-      currentAudio.onended = null;
-      currentAudio.onerror = null;
-      try { currentAudio.pause(); } catch (e) {}
-      currentAudio.currentTime = 0;
-      currentAudio.src = '';
-      currentAudio = null;
-    }
+    player.onended = null;
+    player.onerror = null;
+    try { player.pause(); } catch (e) {}
   }
 
   function playStep(index){
-    stopCurrentAudio();
+    if (pauseTimer){
+      clearTimeout(pauseTimer);
+      pauseTimer = null;
+    }
 
     if (index < 0) index = 0;
 
@@ -454,28 +457,36 @@
     stepLabel.textContent = step.label;
     stepText.textContent = step.text;
 
-    const audio = new Audio(step.audio);
-    currentAudio = audio;
+    player.onended = null;
+    player.onerror = null;
 
-    audio.onended = function(){
-      if (!isPlaying || isPaused || currentAudio !== audio) return;
+    player.src = step.audio;
+    player.currentTime = 0;
+
+    player.onended = function(){
+      if (!isPlaying || isPaused) return;
 
       if (step.pause > 0){
         pauseTimer = setTimeout(() => {
-          if (isPlaying && !isPaused && currentAudio === audio) playStep(index + 1);
+          if (isPlaying && !isPaused) playStep(index + 1);
         }, step.pause * 1000);
       } else {
         playStep(index + 1);
       }
     };
 
-    audio.onerror = function(){
-      if (currentAudio === audio){
-        stepText.textContent = step.text + ' (não foi possível carregar o áudio "' + step.audio + '")';
-      }
+    player.onerror = function(){
+      stepText.textContent = step.text + ' (não foi possível carregar o áudio "' + step.audio + '")';
     };
 
-    audio.play();
+    const playPromise = player.play();
+    if (playPromise && playPromise.catch){
+      playPromise.catch(function(){
+        stepText.textContent = step.text + ' (toque em "Continuar" para retomar o áudio)';
+        isPaused = true;
+        pauseBtn.textContent = 'Continuar';
+      });
+    }
   }
 
   function startExperience(){
@@ -518,8 +529,8 @@
         clearTimeout(pauseTimer);
         pauseTimer = null;
         resumeFromGap = true;
-      } else if (currentAudio){
-        currentAudio.pause();
+      } else {
+        player.pause();
         resumeFromGap = false;
       }
     } else {
@@ -529,8 +540,11 @@
       if (resumeFromGap){
         resumeFromGap = false;
         playStep(stepIndex + 1);
-      } else if (currentAudio){
-        currentAudio.play();
+      } else {
+        const playPromise = player.play();
+        if (playPromise && playPromise.catch){
+          playPromise.catch(function(){});
+        }
       }
     }
   }
@@ -542,7 +556,7 @@
     if (!isPlaying) return;
 
     let target = stepIndex;
-    const playedSeconds = currentAudio ? currentAudio.currentTime : 0;
+    const playedSeconds = player.currentTime || 0;
 
     if (playedSeconds < 1.5){
       target = stepIndex - 1;
@@ -556,7 +570,7 @@
   }
 
   function restartExperience(){
-    stopCurrentAudio();
+    stopPlayback();
     isPaused = false;
     resumeFromGap = false;
     pauseBtn.textContent = 'Pausar';
@@ -568,7 +582,7 @@
   playBtn.addEventListener('click', function(){
     if (stepIndex === -1 || (!isPlaying && stepIndex >= rawSteps.length - 1)){
       // Primeira vez ou já terminou: começa do zero
-      stopCurrentAudio();
+      stopPlayback();
       stepIndex = -1;
       updateProgressDots();
     }
