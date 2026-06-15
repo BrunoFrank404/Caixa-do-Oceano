@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caixa do Oceano — Audiodescrição</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0b2b3a;
+    --deeper:#061a24;
+    --sand:#e9dcc4;
+    --foam:#7fb8ad;
+    --coral:#e2704f;
+    --text:#f4eee2;
+    --focus:#ffd166;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background: radial-gradient(ellipse at 50% -10%, var(--deep) 0%, var(--deeper) 65%);
+    color:var(--text);
+    font-family:'Atkinson Hyperlegible', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* Respeita usuários que preferem menos movimento */
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+
+  a, button{ font-family:inherit; }
+
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding: 32px 20px 64px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+
+  header{
+    margin-bottom: 8px;
+  }
+
+  .eyebrow{
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    font-size:0.8rem;
+    color:var(--foam);
+    margin:0 0 6px;
+  }
+
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size: clamp(2rem, 7vw, 3.4rem);
+    margin:0 0 6px;
+    line-height:1.05;
+  }
+
+  .subtitle{
+    color:var(--sand);
+    font-size:1.05rem;
+    margin:0 0 36px;
+    max-width: 46ch;
+  }
+
+  /* ---- Botão principal: ondas concêntricas ---- */
+  .stage{
+    position:relative;
+    width:min(78vw, 280px);
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin: 12px 0 28px;
+  }
+
+  .ripple{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border:2px solid var(--foam);
+    opacity:0;
+  }
+
+  .playing .ripple{
+    animation: ripple 3.2s ease-out infinite;
+  }
+  .playing .ripple.r2{ animation-delay:1.0s; }
+  .playing .ripple.r3{ animation-delay:2.0s; }
+
+  @keyframes ripple{
+    0%   { transform:scale(0.55); opacity:0.55; }
+    100% { transform:scale(1.35); opacity:0; }
+  }
+
+  #playBtn{
+    position:relative;
+    z-index:2;
+    width: min(70vw, 240px);
+    height: min(70vw, 240px);
+    border-radius:50%;
+    border: none;
+    background: linear-gradient(155deg, var(--foam) 0%, #4f8d82 100%);
+    color: var(--deeper);
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size: clamp(1.2rem, 5vw, 1.7rem);
+    cursor:pointer;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+    padding: 0 16px;
+  }
+
+  #playBtn:hover{ transform: scale(1.03); }
+  #playBtn:active{ transform: scale(0.98); }
+
+  #playBtn.is-playing{
+    background: linear-gradient(155deg, var(--coral) 0%, #b9472f 100%);
+    color: var(--text);
+  }
+
+  /* Foco bem visível para navegação por teclado */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible{
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  /* ---- Texto narrado em destaque ---- */
+  .now-playing{
+    width:100%;
+    min-height: 140px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
+    padding: 24px;
+    margin: 8px 0 28px;
+    font-size: clamp(1.05rem, 3.4vw, 1.4rem);
+    line-height:1.5;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .now-playing .label{
+    display:block;
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    color: var(--foam);
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    text-transform:uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* ---- Barra de progresso por etapas ---- */
+  .progress{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom: 28px;
+  }
+  .progress span{
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.3s ease, transform 0.3s ease;
+  }
+  .progress span.done{ background: var(--foam); }
+  .progress span.active{
+    background: var(--coral);
+    transform: scale(1.25);
+  }
+
+  /* ---- Controles secundários ---- */
+  .controls{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom: 28px;
+    width:100%;
+  }
+
+  .controls button{
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: var(--text);
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size: 1rem;
+    cursor:pointer;
+    transition: background 0.15s ease;
+  }
+  .controls button:hover{ background: rgba(255,255,255,0.16); }
+  .controls button:disabled{
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .speed-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    max-width: 360px;
+    margin-bottom: 8px;
+  }
+  .speed-row label{
+    font-size:0.95rem;
+    white-space:nowrap;
+  }
+  .speed-row input[type=range]{
+    flex:1;
+    accent-color: var(--foam);
+  }
+  .speed-value{
+    min-width: 3.5ch;
+    text-align:right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  footer{
+    margin-top: 36px;
+    font-size: 0.85rem;
+    color: rgba(244,238,226,0.6);
+    max-width: 50ch;
+    line-height:1.6;
+  }
+
+  .visually-hidden{
+    position:absolute;
+    width:1px; height:1px;
+    overflow:hidden;
+    clip:rect(0 0 0 0);
+    white-space:nowrap;
+  }
+
+  .compat-warning{
+    background: rgba(226,112,79,0.18);
+    border: 1px solid var(--coral);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+    font-size: 0.95rem;
+    display:none;
+  }
+  .compat-warning.show{ display:block; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Audiodescrição tátil</p>
+    <h1>Caixa do Oceano</h1>
+    <p class="subtitle">
+      Toque no botão para começar. A narração guiará suas mãos pela caixa,
+      com pausas para você explorar cada objeto com calma.
+    </p>
+  </header>
+
+  <div class="compat-warning" id="compatWarning" role="alert">
+    Este navegador não tem suporte à reprodução de áudio.
+    Tente abrir esta página em um navegador atualizado, como Chrome, Edge ou Safari.
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="ripple r1"></div>
+    <div class="ripple r2"></div>
+    <div class="ripple r3"></div>
+    <button id="playBtn" aria-pressed="false">Iniciar experiência</button>
+  </div>
+
+  <div class="progress" id="progress" role="img" aria-label="Progresso da narração"></div>
+
+  <div class="now-playing" aria-live="off">
+    <div>
+      <span class="label" id="stepLabel">Pronto para começar</span>
+      <span id="stepText">
+        Quando estiver com as duas mãos livres e perto da caixa, toque em
+        "Iniciar experiência" para ouvir as instruções.
+      </span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="backBtn" disabled>Voltar</button>
+    <button id="pauseBtn" disabled>Pausar</button>
+    <button id="restartBtn" disabled>Reiniciar</button>
+  </div>
+
+  <footer>
+    Dica para quem está aplicando a dinâmica: posicione a pessoa com as mãos
+    sobre a caixa antes de tocar em "Iniciar". A narração avisa em qual lado
+    e direção mover a mão antes de descrever cada objeto, e faz uma pausa
+    para a exploração tátil.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const rawSteps = [
+    {
+      label: "Introdução",
+      text: "Olá. Antes de começar, feche os olhos e confie no seu tato. Você vai explorar alguns objetos que representam problemas que chegam até os oceanos. Comece colocando sua mão no lado direito da caixa.",
+      audio: "audio/01-introducao.mp3",
+      pause: 2.5
+    },
+    {
+      label: "Objeto 1 — Tampinha de garrafa",
+      text: "Você encontrou um pequeno objeto redondo e rígido. Essa é uma tampinha de garrafa. Apesar de parecer pequena e inofensiva, ela é um dos tipos de plástico encontrados com frequência nas praias e oceanos. Animais marinhos podem confundir pequenos pedaços de plástico com alimento. Ao ingerir esses resíduos, eles podem sofrer ferimentos, intoxicação ou até morrer.",
+      audio: "audio/02-tampinha.mp3",
+      pause: 6
+    },
+    {
+      label: "Movimento",
+      text: "Agora mova minimamente sua mão para a esquerda e para a frente.",
+      audio: "audio/03-movimento-canudo.mp3",
+      pause: 2
+    },
+    {
+      label: "Objeto 2 — Canudo",
+      text: "Você encontrou um objeto fino e comprido. Esse é um canudo plástico. Ele é usado por poucos minutos, mas pode permanecer no ambiente por muito tempo. Por ser pequeno, pode acabar dentro de animais marinhos, como tartarugas e aves, causando danos ao seu corpo.",
+      audio: "audio/04-canudo.mp3",
+      pause: 6
+    },
+    {
+      label: "Movimento",
+      text: "Agora mova sua mão para a esquerda até encontrar a outra lateral da caixa.",
+      audio: "audio/05-movimento-copo.mp3",
+      pause: 2
+    },
+    {
+      label: "Objeto 3 — Copo descartável",
+      text: "Você encontrou um copo descartável. Esse objeto representa algo muito presente no nosso dia a dia: produtos feitos para serem usados uma única vez e rapidamente descartados. Quando não recebe o destino correto, ele pode ser levado pela chuva e pelos rios até o mar, onde se quebra em pedaços cada vez menores, chamados microplásticos.",
+      audio: "audio/06-copo.mp3",
+      pause: 6
+    },
+    {
+      label: "Movimento",
+      text: "Agora vire a palma da sua mão para cima e mova-a até encontrar a parte superior da caixa. Você chegou ao teto da caixa, onde encontrará um saco plástico.",
+      audio: "audio/07-movimento-saco.mp3",
+      pause: 2.5
+    },
+    {
+      label: "Objeto 4 — Saco plástico",
+      text: "Você está tocando em um saco plástico. Ele pode parecer apenas um resíduo comum, mas no oceano pode se movimentar com as correntes e ser confundido com alimento por animais como tartarugas, que podem confundir plástico com águas-vivas. Um simples descarte pode se transformar em uma ameaça para a vida marinha.",
+      audio: "audio/08-saco-plastico.mp3",
+      pause: 6
+    },
+    {
+      label: "Movimento",
+      text: "Agora vire a palma da sua mão para baixo. Você está na base da caixa. Procure algo fino e enrolado.",
+      audio: "audio/09-movimento-rede.mp3",
+      pause: 2.5
+    },
+    {
+      label: "Objeto 5 — Fio de nylon (rede de pesca)",
+      text: "Você encontrou fios finos e resistentes. Eles representam redes de pesca abandonadas ou perdidas no oceano. Esse tipo de lixo pode continuar preso no ambiente por muito tempo, prendendo animais marinhos, impedindo seus movimentos e causando ferimentos.",
+      audio: "audio/10-rede-pesca.mp3",
+      pause: 6
+    },
+    {
+      label: "Encerramento",
+      text: "Agora imagine que tudo isso que você tocou não está dentro de uma caixa. Está espalhado pelo oceano. O que não enxergamos também existe. Cuidar do mar começa com pequenas escolhas: reduzir o uso de descartáveis, reciclar e descartar corretamente. O oceano não é uma lixeira. Ele é casa.",
+      audio: "audio/11-encerramento.mp3",
+      pause: 0
+    }
+  ];
+
+  const playBtn    = document.getElementById('playBtn');
+  const backBtn    = document.getElementById('backBtn');
+  const pauseBtn   = document.getElementById('pauseBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const stage      = document.getElementById('stage');
+  const stepLabel  = document.getElementById('stepLabel');
+  const stepText   = document.getElementById('stepText');
+  const progress   = document.getElementById('progress');
+  const compatWarning = document.getElementById('compatWarning');
+
+  let stepIndex = -1;
+  let isPlaying = false;
+  let isPaused = false;
+  let pauseTimer = null;
+  let currentAudio = null;
+  let resumeFromGap = false;
+
+  // Monta os indicadores de progresso (um por etapa)
+  rawSteps.forEach((s, i) => {
+    const dot = document.createElement('span');
+    dot.setAttribute('data-index', i);
+    progress.appendChild(dot);
+  });
+
+  function updateProgressDots(){
+    document.querySelectorAll('#progress span').forEach((dot, i) => {
+      dot.classList.toggle('done', i < stepIndex);
+      dot.classList.toggle('active', i === stepIndex);
+    });
+  }
+
+  if (typeof Audio === 'undefined'){
+    compatWarning.classList.add('show');
+    playBtn.disabled = true;
+  }
+
+  // Interrompe completamente o áudio atual (e qualquer pausa agendada),
+  // para garantir que nada continue tocando por baixo da próxima faixa.
+  function stopCurrentAudio(){
+    if (pauseTimer){
+      clearTimeout(pauseTimer);
+      pauseTimer = null;
+    }
+    if (currentAudio){
+      currentAudio.onended = null;
+      currentAudio.onerror = null;
+      try { currentAudio.pause(); } catch (e) {}
+      currentAudio.currentTime = 0;
+      currentAudio.src = '';
+      currentAudio = null;
+    }
+  }
+
+  function playStep(index){
+    stopCurrentAudio();
+
+    if (index < 0) index = 0;
+
+    if (index >= rawSteps.length){
+      finishExperience();
+      return;
+    }
+
+    stepIndex = index;
+    updateProgressDots();
+
+    const step = rawSteps[index];
+    stepLabel.textContent = step.label;
+    stepText.textContent = step.text;
+
+    const audio = new Audio(step.audio);
+    currentAudio = audio;
+
+    audio.onended = function(){
+      if (!isPlaying || isPaused || currentAudio !== audio) return;
+
+      if (step.pause > 0){
+        pauseTimer = setTimeout(() => {
+          if (isPlaying && !isPaused && currentAudio === audio) playStep(index + 1);
+        }, step.pause * 1000);
+      } else {
+        playStep(index + 1);
+      }
+    };
+
+    audio.onerror = function(){
+      if (currentAudio === audio){
+        stepText.textContent = step.text + ' (não foi possível carregar o áudio "' + step.audio + '")';
+      }
+    };
+
+    audio.play();
+  }
+
+  function startExperience(){
+    isPlaying = true;
+    isPaused = false;
+    resumeFromGap = false;
+    stage.classList.add('playing');
+    playBtn.textContent = 'Em reprodução…';
+    playBtn.classList.add('is-playing');
+    playBtn.setAttribute('aria-pressed', 'true');
+    playBtn.disabled = true;
+    backBtn.disabled = false;
+    pauseBtn.disabled = false;
+    pauseBtn.textContent = 'Pausar';
+    restartBtn.disabled = false;
+    playStep(0);
+  }
+
+  function finishExperience(){
+    isPlaying = false;
+    stage.classList.remove('playing');
+    playBtn.textContent = 'Reproduzir novamente';
+    playBtn.classList.remove('is-playing');
+    playBtn.setAttribute('aria-pressed', 'false');
+    playBtn.disabled = false;
+    backBtn.disabled = true;
+    pauseBtn.disabled = true;
+    stepLabel.textContent = 'Concluído';
+  }
+
+  function togglePause(){
+    if (!isPlaying) return;
+
+    if (!isPaused){
+      isPaused = true;
+      pauseBtn.textContent = 'Continuar';
+
+      if (pauseTimer){
+        // Estamos no intervalo de exploração entre objetos: só trava o avanço
+        clearTimeout(pauseTimer);
+        pauseTimer = null;
+        resumeFromGap = true;
+      } else if (currentAudio){
+        currentAudio.pause();
+        resumeFromGap = false;
+      }
+    } else {
+      isPaused = false;
+      pauseBtn.textContent = 'Pausar';
+
+      if (resumeFromGap){
+        resumeFromGap = false;
+        playStep(stepIndex + 1);
+      } else if (currentAudio){
+        currentAudio.play();
+      }
+    }
+  }
+
+  // Volta para o início da faixa anterior. Se a faixa atual ainda estiver
+  // nos primeiros segundos, considera que o usuário quer ouvir a anterior;
+  // caso contrário, repete a faixa atual desde o início.
+  function goBack(){
+    if (!isPlaying) return;
+
+    let target = stepIndex;
+    const playedSeconds = currentAudio ? currentAudio.currentTime : 0;
+
+    if (playedSeconds < 1.5){
+      target = stepIndex - 1;
+    }
+    if (target < 0) target = 0;
+
+    isPaused = false;
+    resumeFromGap = false;
+    pauseBtn.textContent = 'Pausar';
+    playStep(target);
+  }
+
+  function restartExperience(){
+    stopCurrentAudio();
+    isPaused = false;
+    resumeFromGap = false;
+    pauseBtn.textContent = 'Pausar';
+    stepIndex = -1;
+    updateProgressDots();
+    startExperience();
+  }
+
+  playBtn.addEventListener('click', function(){
+    if (stepIndex === -1 || (!isPlaying && stepIndex >= rawSteps.length - 1)){
+      // Primeira vez ou já terminou: começa do zero
+      stopCurrentAudio();
+      stepIndex = -1;
+      updateProgressDots();
+    }
+    startExperience();
+  });
+
+  backBtn.addEventListener('click', goBack);
+  pauseBtn.addEventListener('click', togglePause);
+  restartBtn.addEventListener('click', restartExperience);
+
+})();
+</script>
+
+</body>
+</html>
